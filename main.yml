@@ -1,22 +1,24 @@
-name: Docker Deploy to EC2
+name: Deploy Node.js Docker App to EC2
 
 on:
   push:
     branches:
-      - main
+      - main   # Deploy only when main branch is pushed
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+    # 1️⃣ Checkout your repo
     - name: Checkout code
       uses: actions/checkout@v3
 
+    # 2️⃣ Build Docker image locally (optional, for testing)
     - name: Build Docker image
-      run: |
-        docker build -t myapp:latest .
+      run: docker build -t myapp:latest .
 
+    # 3️⃣ SSH into EC2 and deploy
     - name: Deploy to EC2 via SSH
       uses: appleboy/ssh-action@v0.1.7
       with:
@@ -24,9 +26,18 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_KEY }}
         script: |
-          cd /home/ubuntu/app
-          docker pull myapp:latest || true
+          # Navigate to deployment folder
+          cd /home/ubuntu/app || mkdir -p /home/ubuntu/app && cd /home/ubuntu/app
+
+          # Pull latest code
+          git pull || git clone https://github.com/<YOUR-USERNAME>/<YOUR-REPO>.git .
+
+          # Build Docker image on EC2
+          docker build -t myapp:latest .
+
+          # Stop old container if running
           docker stop myapp || true
           docker rm myapp || true
-          docker build -t myapp:latest .
+
+          # Run new container
           docker run -d --name myapp -p 80:3000 myapp:latest

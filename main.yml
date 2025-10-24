@@ -16,7 +16,7 @@ jobs:
 
     # 2️⃣ Build Docker image locally (optional, for testing)
     - name: Build Docker image
-      run: docker build -t myapp:latest .
+      run: docker build -t calculator:latest .
 
     # 3️⃣ SSH into EC2 and deploy
     - name: Deploy to EC2 via SSH
@@ -30,14 +30,14 @@ jobs:
           cd /home/ubuntu/app || mkdir -p /home/ubuntu/app && cd /home/ubuntu/app
 
           # Pull latest code
-          git pull || git clone https://github.com/<YOUR-USERNAME>/<YOUR-REPO>.git .
+          git pull || git clone https://github.com/prasath9344/calculator-ecr.git
 
           # Build Docker image on EC2
-          docker build -t myapp:latest .
+          docker build -t calculator:latest .
 
           # Stop old container if running
-          docker stop myapp || true
-          docker rm myapp || true
+          docker stop calculator || true
+          docker rm calculator || true
 
           # Run new container
-          docker run -d --name myapp -p 80:3000 myapp:latest
+          docker run -d --name calculator-con -p 80:3000 calculator:latest

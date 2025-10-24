@@ -1,43 +1,48 @@
-name: Deploy Node.js Docker App to EC2
+name: Deploy to EC2 with Docker
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - main   # Deploy only when main branch is pushed
+      - dev
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout your repo
+    # 1️⃣ Checkout code
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # 2️⃣ Build Docker image locally (optional, for testing)
-    - name: Build Docker image
-      run: docker build -t calculator:latest .
-
-    # 3️⃣ SSH into EC2 and deploy
-    - name: Deploy to EC2 via SSH
-      uses: appleboy/ssh-action@v0.1.7
+    # 2️⃣ Copy code to EC2
+    - name: Copy project to EC2
+      uses: appleboy/scp-action@v0.1.3
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_KEY }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "."
+        target: "~/myapp"
+
+    # 3️⃣ Build & deploy Docker on EC2
+    - name: Deploy on EC2
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # Navigate to deployment folder
-          cd /home/ubuntu/app || mkdir -p /home/ubuntu/app && cd /home/ubuntu/app
-
-          # Pull latest code
-          git pull || git clone https://github.com/prasath9344/calculator-ecr.git
-
-          # Build Docker image on EC2
-          docker build -t calculator:latest .
-
-          # Stop old container if running
-          docker stop calculator || true
-          docker rm calculator || true
-
-          # Run new container
-          docker run -d --name calculator-con -p 80:3000 calculator:latest
+          cd ~/myapp
+          # Docker installation check
+          if ! command -v docker &> /dev/null
+          then
+            echo "Docker not found. Installing..."
+            sudo apt update && sudo apt install -y docker.io
+            sudo systemctl start docker
+            sudo systemctl enable docker
+          fi
+          # ✅ Build Docker image with sudo
+          sudo docker build -t myapp:latest .
+          # ✅ Stop/remove old container (ignore errors if not exists)
+          sudo docker stop myapp || true
